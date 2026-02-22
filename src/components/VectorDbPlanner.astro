@@ -1,0 +1,364 @@
+---
+import { vectordbs as dbs } from '../data/vectordbs';
+
+const iInfo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+const iSettings = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-4px; margin-right:8px; color:var(--text);"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const iBarChart = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-3px; margin-right:6px; color:var(--accent);"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>`;
+const iClipboard = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-4px; margin-right:8px; color:var(--text);"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>`;
+---
+
+<div id="vdb-planner">
+    <div class="card" style="margin-bottom:1.5rem">
+        <h2 style="margin-bottom:1rem"><span set:html={iSettings}></span> Workload Parameters</h2>
+        <div class="field-row">
+            <div class="field">
+                <label for="vdb-vectors">Total Vectors (millions) <span class="info-icon" data-tooltip="Total number of items (embeddings) you plan to store in the database." set:html={iInfo}></span></label>
+                <input type="number" id="vdb-vectors" min="0.1" step="0.1" value="10" />
+            </div>
+            <div class="field">
+                <label for="vdb-dims">Embedding Dimensions <span class="info-icon" data-tooltip="The size of the vector array produced by your embedding model. Larger dimensions require proportionally more memory." set:html={iInfo}></span></label>
+                <select id="vdb-dims">
+                    <option value="384">384  (MiniLM)</option>
+                    <option value="768">768  (BERT / BGE-base)</option>
+                    <option value="1024">1 024 (BGE-large)</option>
+                    <option value="1536" selected>1 536 (OpenAI ada-002)</option>
+                    <option value="3072">3 072 (OpenAI text-3-large)</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="vdb-qps">Target QPS (queries/sec) <span class="info-icon" data-tooltip="Queries Per Second. How many concurrent search requests the database needs to handle." set:html={iInfo}></span></label>
+                <input type="number" id="vdb-qps" min="1" value="100" />
+            </div>
+        </div>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="vdb-replicas">Replicas <span class="info-icon" data-tooltip="Number of identical database copies. Increases read throughput and provides redundancy." set:html={iInfo}></span></label>
+                <input type="number" id="vdb-replicas" min="1" max="10" value="1" />
+            </div>
+            <div class="field">
+                <label for="vdb-ha">High Availability <span class="info-icon" data-tooltip="Ensures no downtime during node failures. Requires extra memory and operational overhead for consensus." set:html={iInfo}></span></label>
+                <select id="vdb-ha">
+                    <option value="0" selected>No</option>
+                    <option value="1">Yes (2x resources)</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="vdb-quant">Vector Precision / Quantization <span class="info-icon" data-tooltip="Precision used to store vectors in RAM. Lower precision saves memory but slightly reduces accuracy." set:html={iInfo}></span></label>
+                <select id="vdb-quant">
+                    <option value="4" selected>FP32 (Highest Accuracy — 4 bytes)</option>
+                    <option value="2">FP16 / BF16 (2x compression — 2 bytes)</option>
+                    <option value="1">INT8 / SQ8 (4x compression — 1 byte)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="vdb-metadata">Avg Metadata/Text per Vector (KB) <span class="info-icon" data-tooltip="Size of additional JSON metadata and raw text stored alongside each vector." set:html={iInfo}></span></label>
+                <input type="number" id="vdb-metadata" min="0" step="0.5" value="2.0" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card-grid" id="vdb-results"></div>
+
+    <div class="card" style="margin-top:1.5rem">
+        <h2 style="margin-bottom:.8rem"><span set:html={iClipboard}></span> Feature Comparison</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                <tr>
+                    <th>Database</th><th>License</th><th>Lang</th><th>Distributed</th>
+                    <th>Hybrid Search</th><th>GPU Accel</th><th>Index Types</th>
+                </tr>
+                </thead>
+                <tbody id="vdb-tbody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem">
+        <h2 style="margin-bottom:.8rem"><span set:html={iBarChart}></span> Index Type Comparison</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                <tr>
+                    <th>Index Type</th>
+                    <th>Accuracy</th>
+                    <th>Latency</th>
+                    <th>Throughput</th>
+                    <th>Index Time</th>
+                    <th>Cost</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><strong>IVF_FLAT</strong> <span class="info-icon align-right tooltip-down" data-tooltip="Uses exact vector storage. Provides high recall but requires more memory. Suitable for smaller datasets." set:html={iInfo}></span></td>
+                    <td>Mid</td>
+                    <td>Mid</td>
+                    <td>Low</td>
+                    <td>Fast</td>
+                    <td>Mid</td>
+                </tr>
+                <tr>
+                    <td><strong>IVF_PQ</strong> <span class="info-icon align-right tooltip-down" data-tooltip="Compresses vectors to save memory. Balances between accuracy and storage efficiency. Good for larger datasets." set:html={iInfo}></span></td>
+                    <td>Mid</td>
+                    <td>Mid</td>
+                    <td>High</td>
+                    <td>Mid</td>
+                    <td>Mid</td>
+                </tr>
+                <tr>
+                    <td><strong>HNSW</strong> <span class="info-icon align-right tooltip-down" data-tooltip="Builds a hierarchical structure for efficient searching. Offers high accuracy with low latency. More complex and resource-intensive." set:html={iInfo}></span></td>
+                    <td>High</td>
+                    <td>Low</td>
+                    <td>High</td>
+                    <td>Slow</td>
+                    <td>High</td>
+                </tr>
+                <tr>
+                    <td><strong>DiskANN</strong> <span class="info-icon align-right" data-tooltip="Optimized for SSDs, minimizing disk read times. High accuracy but slower indexing. Cost-effective for large datasets." set:html={iInfo}></span></td>
+                    <td>High</td>
+                    <td>High</td>
+                    <td>Mid</td>
+                    <td>Very Slow</td>
+                    <td>Low</td>
+                </tr>
+                <tr>
+                    <td><strong>SCANN</strong> <span class="info-icon align-right" data-tooltip="Focuses on high throughput and efficiency. Balances accuracy and speed. Suitable for various applications." set:html={iInfo}></span></td>
+                    <td>Mid</td>
+                    <td>Mid</td>
+                    <td>High</td>
+                    <td>Mid</td>
+                    <td>Mid</td>
+                </tr>
+                <tr>
+                    <td><strong>GPU_CAGRA</strong> <span class="info-icon align-right" data-tooltip="Utilizes GPU for accelerated performance. Very high throughput with low latency. Best for applications requiring rapid search capabilities." set:html={iInfo}></span></td>
+                    <td>High</td>
+                    <td>Low</td>
+                    <td>Very High</td>
+                    <td>Fast</td>
+                    <td>Very High</td>
+                </tr>
+                <tr>
+                    <td><strong>Dynamic</strong> <span class="info-icon align-right" data-tooltip="Automatically transitions from a flat index to a graph-based index as data grows. Balances initial ingest speed with long-term scalability. Ideal for growing datasets." set:html={iInfo}></span></td>
+                    <td>High</td>
+                    <td>Low</td>
+                    <td>High</td>
+                    <td>Mid</td>
+                    <td>Mid</td>
+                </tr>
+                <tr>
+                    <td><strong>Inverted</strong> <span class="info-icon align-right" data-tooltip="Maps keywords to document IDs for traditional exact-matching. Provides extremely fast lookups but ignores semantic meaning. Crucial for robust hybrid search." set:html={iInfo}></span></td>
+                    <td>High</td>
+                    <td>Low</td>
+                    <td>High</td>
+                    <td>Fast</td>
+                    <td>Low</td>
+                </tr>
+                <tr>
+                    <td><strong>Sparse</strong> <span class="info-icon align-right" data-tooltip="Optimized for high-dimensional vectors containing mostly zeros. Highly memory-efficient for keyword and token matching. Acts as the lexical backbone for modern hybrid search." set:html={iInfo}></span></td>
+                    <td>High</td>
+                    <td>Low</td>
+                    <td>High</td>
+                    <td>Fast</td>
+                    <td>Low</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .info-icon {
+        display: inline-flex;
+        align-items: center;
+        color: var(--muted);
+        cursor: help;
+        position: relative;
+        margin-left: 6px;
+        top: 2px;
+    }
+    .info-icon::before {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 150%;
+        left: 50%;
+        transform: translateX(-80%);
+        width: max-content;
+        max-width: 240px;
+        background: var(--card);
+        color: var(--text);
+        padding: 0.6rem 0.8rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        font-size: 0.8rem;
+        font-weight: 400;
+        line-height: 1.4;
+        box-shadow: var(--shadow);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s ease;
+        z-index: 100;
+        pointer-events: none;
+    }
+
+    .info-icon:hover { color: var(--accent); }
+    .info-icon:hover::before { opacity: 1; visibility: visible; bottom: 130%; }
+
+    .info-icon.align-right::before {
+        left: -10px;
+        transform: none;
+    }
+
+    .info-icon.tooltip-down::before {
+        bottom: auto;
+        top: 150%;
+    }
+    .info-icon.tooltip-down:hover::before {
+        bottom: auto;
+        top: 130%;
+    }
+
+    @media (min-width: 768px) {
+        .info-icon::before { transform: translateX(-50%); left: 50%; }
+        .info-icon.align-right::before { transform: translateX(0); left: -10px; }
+        .table-responsive { overflow: visible !important; }
+    }
+</style>
+
+<script is:inline id="__vdb_data" type="application/json" set:html={JSON.stringify(dbs)}></script>
+
+<script>
+    const dbs = JSON.parse(document.getElementById('__vdb_data')!.textContent!);
+
+    const svgCheck = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const svgX = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent3)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
+    (window as any).selectVdb = function(dbName: string, ramNeeded: number, coresNeeded: number, diskNeeded: number) {
+        const plan = JSON.parse(localStorage.getItem('ai_infra_plan') || '{}');
+        plan.vdb = { name: dbName, ram: Number(ramNeeded), cores: Number(coresNeeded), disk: Number(diskNeeded) };
+        localStorage.setItem('ai_infra_plan', JSON.stringify(plan));
+
+        // UX Upagrade: Premium Toast & Auto-Redirect
+        const toast = document.createElement('div');
+        toast.innerHTML = `✓ Added <strong style="color:#fff">${dbName}</strong> to plan! Redirecting to Base Machine...`;
+        Object.assign(toast.style, {
+            position: 'fixed', bottom: '24px', right: '24px',
+            background: 'var(--accent)', color: '#fff', padding: '14px 24px',
+            borderRadius: '8px', boxShadow: 'var(--shadow)',
+            fontSize: '0.95rem', zIndex: '9999', opacity: '0',
+            transform: 'translateY(15px)', transition: 'all 0.3s ease'
+        });
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateY(0)';
+        });
+
+        setTimeout(() => {
+            window.location.href = import.meta.env.BASE_URL + '/base-machine';
+        }, 1200);
+    };
+
+    document.getElementById('vdb-planner')!.addEventListener('input', compareDbs);
+
+    function compareDbs() {
+        const millions    = parseFloat((document.getElementById('vdb-vectors')  as HTMLInputElement).value);
+        const dims        = parseInt((document.getElementById('vdb-dims')      as HTMLSelectElement).value);
+        const qps         = parseInt((document.getElementById('vdb-qps')       as HTMLInputElement).value);
+        const replicas    = parseInt((document.getElementById('vdb-replicas')  as HTMLInputElement).value);
+        const ha          = parseInt((document.getElementById('vdb-ha')        as HTMLSelectElement).value);
+        const bytesPerDim = parseInt((document.getElementById('vdb-quant')     as HTMLSelectElement).value);
+        const metaKb      = parseFloat((document.getElementById('vdb-metadata') as HTMLInputElement).value);
+
+        const haFactor    = ha ? 2 : 1;
+        const container   = document.getElementById('vdb-results')!;
+        container.innerHTML = '';
+
+        for (const db of dbs) {
+
+            const actualRawBytesPerM = dims * bytesPerDim * 1e6;
+            const actualRawGibPerM = actualRawBytesPerM / (1024 ** 3);
+            const metaGibPerM = (metaKb * 1024 * 1e6) / (1024 ** 3);
+            const base768Gib = (768 * 4 * 1e6) / (1024 ** 3);
+            const dbRamOverheadGibPerM = Math.max(0, db.ramPerMillionVecs768Gb - base768Gib);
+
+            const ramNeeded = ((actualRawGibPerM + dbRamOverheadGibPerM + (metaGibPerM * 0.1)) * millions * replicas * haFactor).toFixed(1);
+
+            const actualRawGbPerM = actualRawBytesPerM / 1e9;
+            const metaGbPerM = (metaKb * 1024 * 1e6) / 1e9;
+            const base768Gb = (768 * 4 * 1e6) / 1e9;
+            const dbDiskOverheadGbPerM = Math.max(0, db.diskPerMillionVecs768Gb - base768Gb);
+
+            const diskNeeded = ((actualRawGbPerM + dbDiskOverheadGbPerM + metaGbPerM) * millions * replicas * haFactor).toFixed(1);
+
+            const coresNeeded = Math.max(db.minCores, Math.ceil(db.recCores * (qps / 200) * replicas * haFactor));
+            const minRam      = Math.max(db.minRamGb, Math.ceil(parseFloat(ramNeeded) * 1.15));
+
+            let suitClass = 'badge-green';
+            let suitText  = 'Recommended';
+
+            if (millions > 100 && !db.distributed)           { suitClass = 'badge-red'; suitText = 'Not distributed'; }
+            else if (millions > 50 && db.name === 'Chroma')  { suitClass = 'badge-red'; suitText = 'Over capacity'; }
+            else if (qps > 500 && !db.distributed)           { suitClass = 'badge-purple'; suitText = 'May struggle'; }
+
+            const pct = Math.min(100, (parseFloat(ramNeeded) / minRam) * 100);
+            const barColor = pct > 85 ? 'var(--accent3)' : 'var(--accent2)';
+
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+                    <h3>${db.name}</h3>
+                    <span class="badge ${suitClass}">${suitText}</span>
+                </div>
+                <div class="stat"><span class="label">RAM Needed</span><span class="value">${minRam} GB</span></div>
+                <div class="stat"><span class="label">Index + Data on Disk</span><span class="value">${diskNeeded} GB</span></div>
+                <div class="stat"><span class="label">CPU Cores</span><span class="value">${coresNeeded} vCPU</span></div>
+                <div class="stat"><span class="label">RAM for Vectors</span><span class="value">${ramNeeded} GB</span></div>
+                <div style="margin-top:.8rem">
+                    <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted)">
+                        <span>RAM utilization</span><span>${ramNeeded} / ${minRam} GB</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-fill" style="width: ${pct}%; background: ${barColor}"></div>
+                    </div>
+                </div>
+                <p style="margin-top:.8rem;font-size:.82rem;color:var(--muted)">${db.notes}</p>
+                <button class="btn btn-primary" style="margin-top:1rem; width:100%; justify-content:center;" 
+                    onclick="window.selectVdb('${db.name}', ${minRam}, ${coresNeeded}, ${diskNeeded})">
+                    Add to Plan
+                </button>
+            `;
+            container.appendChild(card);
+        }
+
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('vdb-tbody')!;
+        tbody.innerHTML = '';
+
+        dbs.forEach((db: any) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${db.name}</strong></td>
+                <td>${db.license}</td>
+                <td>${db.language}</td>
+                <td style="text-align:center">${db.distributed ? svgCheck : svgX}</td>
+                <td style="text-align:center">${db.hybrid ? svgCheck : svgX}</td>
+                <td style="text-align:center">${db.gpu ? svgCheck : svgX}</td>
+                <td style="font-size:.8rem">${db.indexTypes.join(', ')}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    compareDbs();
+</script>

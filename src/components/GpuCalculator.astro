@@ -1,0 +1,381 @@
+---
+import { gpus }   from '../data/gpus';
+import { models } from '../data/models';
+
+const iInfo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+const iInfoMini = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+
+const iLayers = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-4px; margin-right:8px; color:var(--text);"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`;
+const iSettings = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-4px; margin-right:8px; color:var(--text);"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const iUsers = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-4px; margin-right:8px; color:var(--accent2);"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+const iDrive = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-memory-stick-icon lucide-memory-stick"><path d="M12 12v-2"/><path d="M12 18v-2"/><path d="M16 12v-2"/><path d="M16 18v-2"/><path d="M2 11h1.5"/><path d="M20 18v-2"/><path d="M20.5 11H22"/><path d="M4 18v-2"/><path d="M8 12v-2"/><path d="M8 18v-2"/><rect x="2" y="6" width="20" height="10" rx="2"/></svg>`;
+const iTarget = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-4px; margin-right:8px; color:var(--text);"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
+---
+
+<div id="gpu-calc">
+    <div class="calc-grid">
+        <div class="calc-inputs">
+            <div class="card" style="margin-bottom:1.5rem">
+                <h2 style="margin-bottom:1rem"><span set:html={iLayers}></span> Model & Architecture</h2>
+                <div class="field-row">
+                    <div class="field" style="flex:1.5">
+                        <label for="sel-model">Model Preset <span class="info-icon" data-tooltip="Pre-fills the architecture details below based on popular open-source models." set:html={iInfo}></span></label>
+                        <select id="sel-model">
+                            {models.map((m, i) => (
+                                    <option value={i}>{m.name}{m.params > 0 ? ` (${m.params}B)` : ''}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="inp-params">Total Params (B) <span class="info-icon" data-tooltip="The total number of parameters in the model in billions. Determines the size of the weights on disk/VRAM." set:html={iInfo}></span></label>
+                        <input type="number" id="inp-params" min="0.5" step="0.1" value={models[0].params} />
+                    </div>
+                    <div class="field">
+                        <label for="inp-active-params">Active Params <span style="font-weight:400;color:var(--muted)">(MoE)</span> <span class="info-icon" data-tooltip="Number of parameters used during a single forward pass. For standard models, this equals Total Params. For Mixture of Experts (MoE), this is lower and speeds up inference." set:html={iInfo}></span></label>
+                        <input type="number" id="inp-active-params" min="0.5" step="0.1" value={models[0].params} />
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field"><label for="inp-layers">Layers <span class="info-icon" data-tooltip="Number of transformer layers (blocks) in the model." set:html={iInfo}></span></label><input type="number" id="inp-layers" min="1" value={models[0].layers} /></div>
+                    <div class="field"><label for="inp-hidden">Hidden Dim <span class="info-icon" data-tooltip="Size of the hidden representations (often called hidden size or embedding dimension)." set:html={iInfo}></span></label><input type="number" id="inp-hidden" min="128" step="128" value={models[0].hidden} /></div>
+                    <div class="field"><label for="inp-intermediate">Intermediate (FFN) <span class="info-icon" data-tooltip="Size of the feed-forward network's intermediate hidden layer." set:html={iInfo}></span></label><input type="number" id="inp-intermediate" min="128" step="128" value={models[0].intermediate} /></div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field"><label for="inp-num-heads">Query Heads <span class="info-icon" data-tooltip="Number of attention heads used for Queries." set:html={iInfo}></span></label><input type="number" id="inp-num-heads" min="1" value={models[0].numHeads} /></div>
+                    <div class="field"><label for="inp-kv-heads">KV Heads <span class="info-icon" data-tooltip="Number of attention heads used for Keys/Values. If this is lower than Query Heads, the model uses GQA/MQA to save massive amounts of memory." set:html={iInfo}></span></label><input type="number" id="inp-kv-heads" min="1" value={models[0].numKvHeads} /></div>
+                    <div class="field"><label for="inp-head-dim">Head Dim <span class="info-icon" data-tooltip="Dimension of each attention head (usually Hidden Dim divided by Query Heads)." set:html={iInfo}></span></label><input type="number" id="inp-head-dim" min="32" value={models[0].headDim} /></div>
+                </div>
+                <div id="attn-info" style="margin-top:.4rem;font-size:.82rem;color:var(--accent2)"></div>
+            </div>
+
+            <div class="card" style="margin-bottom:1.5rem">
+                <h2 style="margin-bottom:1rem"><span set:html={iSettings}></span> Quantization & Precision</h2>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="sel-quant">Weight Quantization <span class="info-icon" data-tooltip="The precision used to store the model weights. Lower bitrates save VRAM and increase speed, but can slightly degrade model reasoning." set:html={iInfo}></span></label>
+                        <select id="sel-quant">
+                            <option value="4" data-eff="0.90">FP32 — 4.00 bytes/param</option>
+                            <option value="2" data-eff="0.85" selected>FP16 / BF16 — 2.00 bytes/param</option>
+                            <option value="1.0625" data-eff="0.75">INT8 (Q8_0) — 1.06 bytes/param</option>
+                            <option value="0.71" data-eff="0.60">Q5_K_M — 0.71 bytes/param</option>
+                            <option value="0.604" data-eff="0.52">Q4_K_M — 0.60 bytes/param</option>
+                            <option value="0.5" data-eff="0.48">INT4 (Q4_0) — 0.50 bytes/param</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="sel-kv-quant">KV Cache Precision <span class="info-icon" data-tooltip="Precision used for the KV cache. Quantizing to 8-bit or 4-bit drastically reduces memory footprint for long contexts." set:html={iInfo}></span></label>
+                        <select id="sel-kv-quant">
+                            <option value="2" selected>FP16 — 2 bytes</option>
+                            <option value="1">FP8 / INT8 — 1 byte</option>
+                            <option value="0.5">INT4 — 0.5 bytes</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="inp-ctx">Context Length <span class="info-icon" data-tooltip="Maximum number of tokens the model can process at once (prompt + generation)." set:html={iInfo}></span></label>
+                        <select id="inp-ctx">
+                            <option value="2048">2 048</option>
+                            <option value="4096" selected>4 096</option>
+                            <option value="8192">8 192</option>
+                            <option value="32768">32 768</option>
+                            <option value="131072">131 072</option>
+                        </select>
+                    </div>
+                    <div class="field"><label for="inp-batch">Batch Size <span class="info-icon" data-tooltip="Maximum number of user requests processed simultaneously by the GPU." set:html={iInfo}></span></label><input type="number" id="inp-batch" min="1" max="512" value="1" /></div>
+                    <div class="field">
+                        <label for="sel-modality">Modality <span class="info-icon" data-tooltip="Extra VRAM multiplier required for Vision-Language models to process images alongside text." set:html={iInfo}></span></label>
+                        <select id="sel-modality">
+                            <option value="1.0" selected>Text only (1.0×)</option>
+                            <option value="1.25">Vision-Language (1.25×)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 style="margin-bottom:1rem"><span set:html={iUsers}></span> Concurrent Users</h2>
+                <div class="field-row">
+                    <div class="field"><label for="inp-users">Number of Concurrent Users <span class="info-icon" data-tooltip="Total number of simultaneous users making requests to the server." set:html={iInfo}></span></label><input type="number" id="inp-users" min="1" value="10" /></div>
+                    <div class="field"><label for="inp-avg-ctx">Avg. Tokens per Request <span class="info-icon" data-tooltip="Average combined length of the user's prompt and the model's generated response." set:html={iInfo}></span></label><input type="number" id="inp-avg-ctx" min="64" value="2048" /></div>
+                    <div class="field">
+                        <label for="inp-safety">Safety Margin <span class="info-icon" data-tooltip="Extra VRAM buffer allocated to prevent Out-Of-Memory (OOM) crashes during unexpected spikes." set:html={iInfo}></span></label>
+                        <select id="inp-safety">
+                            <option value="1.0" selected>None (1.0×)</option>
+                            <option value="1.1">10 % (1.1×)</option>
+                            <option value="1.2">20 % (1.2×)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="calc-results-sticky">
+            <div class="result-panel" id="results">
+                <h3><span set:html={iDrive}></span> VRAM Breakdown — single req</h3>
+                <div class="stat"><span class="label">Model Weights <span class="info-icon" data-tooltip="VRAM required to load the model's neural network parameters into memory." set:html={iInfo}></span></span><span class="value" id="r-weights">–</span></div>
+                <div class="stat"><span class="label">KV Cache (1 req) <span class="info-icon" data-tooltip="Memory used to store past attention keys/values. Scales linearly with context length." set:html={iInfo}></span></span><span class="value" id="r-kv">–</span></div>
+                <div class="stat"><span class="label">Activation Memory <span class="info-icon" data-tooltip="Transient memory needed during a single forward pass. Discarded immediately after generation." set:html={iInfo}></span></span><span class="value" id="r-act">–</span></div>
+                <div class="stat"><span class="label">Framework Overhead <span class="info-icon" data-tooltip="Fixed baseline memory reserved by the GPU driver, CUDA context, and the inference engine." set:html={iInfo}></span></span><span class="value" id="r-cuda">–</span></div>
+                <div class="stat"><span class="label">Modality Overhead <span class="info-icon" data-tooltip="Additional memory buffer required for vision/image encoders in multimodal LLMs." set:html={iInfo}></span></span><span class="value" id="r-modality">–</span></div>
+                <div class="stat" style="margin-top:.3rem"><span class="label"><strong>Shared Cost</strong> <span class="info-icon" data-tooltip="Total baseline memory that is loaded once per GPU, regardless of how many users connect." set:html={iInfo}></span></span><span class="value" id="r-static" style="color:var(--accent)">–</span></div>
+                <div class="stat"><span class="label"><strong>Per-User Cost</strong> <span class="info-icon" data-tooltip="Additional memory allocated for every new concurrent user session (predominantly KV cache)." set:html={iInfo}></span></span><span class="value" id="r-peruser" style="color:var(--accent2)">–</span></div>
+                <div class="stat" style="margin-top:.5rem"><span class="label"><strong>Total — 1 User</strong></span><span class="value" id="r-total" style="font-size:1.15rem">–</span></div>
+            </div>
+
+            <div class="result-panel" id="results-multi" style="margin-top:1.5rem; border-color:var(--accent2)">
+                <h3 style="color:var(--accent2)"><span set:html={iUsers}></span> Multi-User / Server VRAM</h3>
+                <p style="font-size:.9rem;margin-bottom:.8rem;color:var(--muted)">
+                    <strong style="color:var(--text)" id="rm-static-echo">–</strong> shared + <strong style="color:var(--text)" id="rm-peruser-echo">–</strong> per user
+                </p>
+                <div class="stat"><span class="label">Shared (weights + overhead) <span class="info-icon" data-tooltip="Base memory required just to boot the model and accept requests." set:html={iInfo}></span></span><span class="value" id="rm-shared">–</span></div>
+                <div class="stat"><span class="label">Per-User × <span id="rm-users-label">1</span> users <span class="info-icon" data-tooltip="Total KV cache and session memory reserved for all concurrent users." set:html={iInfo}></span></span><span class="value" id="rm-kv">–</span></div>
+                <div class="stat"><span class="label">Modality × Safety Margin <span class="info-icon" data-tooltip="Extra VRAM reserved for multimodal processing and general safety headroom." set:html={iInfo}></span></span><span class="value" id="rm-margin">–</span></div>
+                <div class="stat" style="margin-top:.5rem"><span class="label"><strong>Total — Server VRAM</strong> <span class="info-icon" data-tooltip="Absolute minimum total GPU memory required across the entire server cluster." set:html={iInfo}></span></span><span class="value" id="rm-total" style="font-size:1.15rem; color:#f0ad4e">–</span></div>
+
+                <div style="margin-top:1.2rem;padding-top:.8rem;border-top:1px solid var(--border)">
+                    <h4 style="color:var(--accent);margin-bottom:.6rem;font-size:.95rem">Throughput & Queuing</h4>
+                    <div class="stat"><span class="label">Active Batch (parallel) <span class="info-icon" data-tooltip="Number of users generating text simultaneously. Constrained by the Batch Size setting." set:html={iInfo}></span></span><span class="value" id="rm-batch">–</span></div>
+                    <div class="stat"><span class="label">Users Queued <span class="info-icon" data-tooltip="Users waiting for an open slot in the batch. High queue times cause linear degradation in effective user speed." set:html={iInfo}></span></span><span class="value" id="rm-queued">–</span></div>
+                    <div class="stat"><span class="label">Gen Speed (single stream) <span class="info-icon" data-tooltip="Estimated tokens generated per second when running a single sequence (higher is faster)." set:html={iInfo}></span></span><span class="value" id="rm-gen-speed">–</span></div>
+                    <div class="stat"><span class="label">Total Server Throughput <span class="info-icon" data-tooltip="Combined token generation rate across all parallel users currently in the active batch." set:html={iInfo}></span></span><span class="value" id="rm-throughput">–</span></div>
+                    <div class="stat"><span class="label">Per-User Speed <span class="info-icon" data-tooltip="Effective speed a single user experiences, factoring in network batching and queue wait times." set:html={iInfo}></span></span><span class="value" id="rm-per-user-tps">–</span></div>
+                    <div class="stat"><span class="label">Time to First Token (est.) <span class="info-icon" data-tooltip="Estimated time to ingest the input prompt (prefill) before the first output token appears. This is compute-bound." set:html={iInfo}></span></span><span class="value" id="rm-ttft">–</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem">
+        <h2 style="margin-bottom:.5rem"><span set:html={iTarget}></span> GPU Compatibility</h2>
+        <p style="color:var(--muted);font-size:.85rem;margin-bottom:.8rem">Sized for <strong id="gpu-table-mode" style="color:var(--text)">1 user</strong>.</p>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                <tr><th>GPU</th><th>VRAM</th><th>BW</th><th># GPUs</th><th>Max Users</th><th>Gen TPS</th><th>Per-User TPS</th><th>Fit</th><th>Cost</th><th>Action</th></tr>
+                </thead>
+                <tbody id="gpu-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .info-icon {
+        display: inline-flex;
+        align-items: center;
+        color: var(--muted);
+        cursor: help;
+        position: relative;
+        margin-left: 6px;
+        top: 2px;
+    }
+    .info-icon:hover { color: var(--accent); }
+    .info-icon::before {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 150%;
+        left: 50%;
+        transform: translateX(-80%);
+        width: max-content;
+        max-width: 240px;
+        background: var(--card);
+        color: var(--text);
+        padding: 0.6rem 0.8rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        font-size: 0.8rem;
+        font-weight: 400;
+        line-height: 1.4;
+        box-shadow: var(--shadow);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s ease;
+        z-index: 100;
+        pointer-events: none;
+    }
+    @media (min-width: 768px) {
+        .info-icon::before { transform: translateX(-50%); }
+    }
+    .info-icon:hover::before { opacity: 1; visibility: visible; bottom: 130%; }
+</style>
+
+<script is:inline id="__info_icon_mini" type="text/plain" set:html={iInfoMini}></script>
+<script is:inline id="__gpu_data" type="application/json" set:html={JSON.stringify(gpus)}></script>
+<script is:inline id="__model_data" type="application/json" set:html={JSON.stringify(models)}></script>
+
+<script>
+    import { calculateVramDetails, calcGenSpeed, calcPrefillTimeMs } from '../utils/gpu-calculations';
+    const gpus   = JSON.parse(document.getElementById('__gpu_data')!.textContent!);
+    const models = JSON.parse(document.getElementById('__model_data')!.textContent!);
+    const iconMini = document.getElementById('__info_icon_mini')!.textContent!;
+
+    (window as any).selectGpu = function(gpuName: string, count: number, weightsGb: number, serverTotalVram: number) {
+        const plan = JSON.parse(localStorage.getItem('ai_infra_plan') || '{}');
+        plan.llm = { gpu: gpuName, count, weightsGb, vram: serverTotalVram };
+        localStorage.setItem('ai_infra_plan', JSON.stringify(plan));
+
+        // UX Upgrade: Beautiful Custom Modal instead of browser confirm()
+        const modalOverlay = document.createElement('div');
+        Object.assign(modalOverlay.style, {
+            position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+            background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(5px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '9999',
+            opacity: '0', transition: 'opacity 0.2s ease'
+        });
+
+        modalOverlay.innerHTML = `
+            <div class="card" style="max-width:420px; transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align:center; padding: 2rem;">
+                <h3 style="color:var(--accent2); margin-bottom:1rem; font-size: 1.4rem;">✓ GPU Hardware Saved</h3>
+                <p style="color:var(--muted); margin-bottom:1.8rem; font-size:.95rem; line-height: 1.5;">
+                    Added <strong>${count}× ${gpuName}</strong> to your plan.<br><br>
+                    Would you like to size a Vector Database next, or skip straight to the Base Machine?
+                </p>
+                <div style="display:flex; gap:1rem; justify-content:center;">
+                    <button id="btn-skip" class="btn btn-danger" style="background:transparent;">Skip DB</button>
+                    <button id="btn-add-db" class="btn btn-primary">Add Vector DB</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modalOverlay);
+        requestAnimationFrame(() => {
+            modalOverlay.style.opacity = '1';
+            (modalOverlay.firstElementChild as HTMLElement).style.transform = 'translateY(0)';
+        });
+
+        document.getElementById('btn-add-db')!.onclick = () => window.location.href = import.meta.env.BASE_URL + '/vector-db';
+        document.getElementById('btn-skip')!.onclick = () => window.location.href = import.meta.env.BASE_URL + '/base-machine';
+    };
+
+    const getEl = (id: string) => document.getElementById(id)!;
+    const getInputVal = (id: string) => parseFloat((getEl(id) as HTMLInputElement).value);
+    const getIntVal = (id: string) => parseInt((getEl(id) as HTMLInputElement | HTMLSelectElement).value);
+    const getSelectVal = (id: string) => parseFloat((getEl(id) as HTMLSelectElement).value);
+    const fmt = (gb: number) => gb < 0.01 ? '< 0.01 GB' : gb.toFixed(2) + ' GB';
+
+    function updateAttnInfo() {
+        const qh = getIntVal('inp-num-heads') || 0;
+        const kvh = getIntVal('inp-kv-heads') || 0;
+        const el = getEl('attn-info');
+        if (kvh === 1) el.innerHTML = `${iconMini} <strong>MQA</strong> — KV cache reduced ${qh}× vs MHA`;
+        else if (kvh < qh) el.innerHTML = `${iconMini} <strong>GQA</strong> — KV cache reduced ${(qh/kvh).toFixed(1)}× vs MHA`;
+        else el.innerHTML = `${iconMini} <strong>MHA</strong> — No KV cache reduction`;
+    }
+
+    function calculate() {
+        const selQuant = getEl('sel-quant') as HTMLSelectElement;
+        const inputs = {
+            params: getInputVal('inp-params'),
+            activeParams: getInputVal('inp-active-params') || getInputVal('inp-params'),
+            bytesPerP: getSelectVal('sel-quant'),
+            kvBytes: getSelectVal('sel-kv-quant'),
+            ctxMax: getIntVal('inp-ctx'),
+            layers: getIntVal('inp-layers'),
+            hidden: getIntVal('inp-hidden'),
+            numKvHeads: getIntVal('inp-kv-heads'),
+            headDim: getIntVal('inp-head-dim'),
+            modality: getSelectVal('sel-modality'),
+            users: getIntVal('inp-users'),
+            avgCtx: getIntVal('inp-avg-ctx'),
+            safety: getSelectVal('inp-safety'),
+            batch: getIntVal('inp-batch'),
+            efficiency: parseFloat(selQuant.options[selQuant.selectedIndex].dataset.eff || '1')
+        };
+
+        const r = calculateVramDetails(inputs);
+
+        getEl('r-weights').textContent = fmt(r.weightsGb);
+        getEl('r-kv').textContent = fmt(r.kvOneReq);
+        getEl('r-act').textContent = fmt(r.activationsGb);
+        getEl('r-cuda').textContent = fmt(r.cudaOverhead);
+        getEl('r-modality').textContent = inputs.modality > 1 ? `×${inputs.modality} (+${fmt(r.total1 - r.baseTotal1)})` : 'none';
+        getEl('r-static').textContent = fmt(r.staticCost);
+        getEl('r-peruser').textContent = fmt(r.perUserCost);
+        getEl('r-total').textContent = fmt(r.total1);
+        getEl('r-total').className = 'value ' + (r.total1 < 24 ? 'ok' : r.total1 < 80 ? 'warn' : 'danger');
+
+        getEl('rm-static-echo').textContent = fmt(r.staticCost);
+        getEl('rm-peruser-echo').textContent = fmt(r.perUserCost);
+        getEl('rm-shared').textContent = fmt(r.staticCost);
+        getEl('rm-users-label').textContent = String(inputs.users);
+        getEl('rm-kv').textContent = fmt(r.perUserCost * inputs.users);
+        getEl('rm-margin').textContent = (inputs.modality > 1 || inputs.safety > 1) ? `×${inputs.modality} ×${inputs.safety} (+${fmt(r.serverTotal - r.serverRaw)})` : 'none';
+
+        getEl('rm-total').textContent = fmt(r.serverTotal);
+        getEl('rm-total').style.color = r.serverTotal < 48 ? 'var(--accent2)' : r.serverTotal < 160 ? '#f0ad4e' : 'var(--accent3)';
+
+        const refGpu = gpus.find((g: any) => g.name.includes('5090')) || gpus[0];
+        const refGenTps = calcGenSpeed(refGpu.bw, r.activeWeightsGb, r.kvPerTokenGb, inputs.avgCtx, inputs.efficiency);
+        const refTotalThroughput = refGenTps * r.activeBatch;
+        const refPerUser = refTotalThroughput / inputs.users;
+        const prefillMs = calcPrefillTimeMs(inputs.activeParams, inputs.avgCtx, refGpu.fp16Tflops);
+
+        getEl('rm-batch').textContent = `${r.activeBatch} user${r.activeBatch > 1 ? 's' : ''}`;
+        getEl('rm-queued').textContent = `${r.queued} user${r.queued !== 1 ? 's' : ''}`;
+        getEl('rm-queued').className = 'value ' + (r.queued === 0 ? 'ok' : 'warn');
+        getEl('rm-gen-speed').textContent = `~${Math.round(refGenTps)} tok/s on ${refGpu.name}`;
+        getEl('rm-throughput').textContent = `~${Math.round(refTotalThroughput)} tok/s`;
+        getEl('rm-per-user-tps').textContent = `~${refPerUser.toFixed(1)} tok/s per user`;
+        getEl('rm-ttft').textContent = `~${Math.round(prefillMs)} ms on ${refGpu.name}`;
+
+        getEl('gpu-table-mode').textContent = inputs.users > 1 ? `${inputs.users} concurrent users` : '1 user';
+
+        const tbody = getEl('gpu-tbody');
+        tbody.innerHTML = '';
+
+        gpus.forEach((g: any) => {
+            const numGpus = Math.ceil(r.serverTotal / g.vram);
+            const totalCapacity = numGpus * g.vram;
+            const fits = numGpus <= 8 && totalCapacity >= r.serverTotal;
+            const maxUsers = Math.max(0, Math.floor((totalCapacity - r.staticCost) / Math.max(r.perUserCost, 0.001)));
+            const genTps = calcGenSpeed(g.bw, r.activeWeightsGb, r.kvPerTokenGb, inputs.avgCtx, inputs.efficiency);
+            const gpuTotalThroughput = genTps * r.activeBatch;
+            const gpuPerUser = gpuTotalThroughput / inputs.users;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${g.name}</td>
+                <td>${g.vram} GB</td>
+                <td>${g.bw} GB/s</td>
+                <td>${numGpus > 1 ? numGpus + '×' : '1'}</td>
+                <td>${maxUsers.toLocaleString()}</td>
+                <td>~${Math.round(genTps)} tok/s</td>
+                <td>~${gpuPerUser >= 1 ? Math.round(gpuPerUser) : gpuPerUser.toFixed(1)} tok/s</td>
+                <td><span class="badge ${fits ? 'badge-green' : 'badge-red'}">${fits ? '✓ Fits' : '✗ Over'}</span></td>
+                <td>$${(numGpus * g.price).toLocaleString()}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" style="padding: .2rem .5rem; font-size: .8rem;" 
+                    onclick="window.selectGpu('${g.name}', ${numGpus}, ${r.weightsGb}, ${r.serverTotal})">
+                        Select
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    getEl('gpu-calc').addEventListener('input', calculate);
+
+    getEl('sel-model').addEventListener('change', (e: Event) => {
+        const target = e.target as HTMLSelectElement;
+        const m = models[parseInt(target.value)];
+        if (m && m.params > 0) {
+            (getEl('inp-params') as HTMLInputElement).value = String(m.params);
+            (getEl('inp-active-params') as HTMLInputElement).value = String(m.experts > 0 ? Math.round(m.params * (0.1 + 0.9 * (m.activeExperts/m.experts))) : m.params);
+            (getEl('inp-layers') as HTMLInputElement).value = String(m.layers);
+            (getEl('inp-hidden') as HTMLInputElement).value = String(m.hidden);
+            (getEl('inp-intermediate') as HTMLInputElement).value = String(m.intermediate);
+            (getEl('inp-num-heads') as HTMLInputElement).value = String(m.numHeads);
+            (getEl('inp-kv-heads') as HTMLInputElement).value = String(m.numKvHeads);
+            (getEl('inp-head-dim') as HTMLInputElement).value = String(m.headDim);
+        }
+        updateAttnInfo();
+        calculate();
+    });
+
+    updateAttnInfo();
+    calculate();
+</script>

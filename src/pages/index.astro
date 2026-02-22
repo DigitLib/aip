@@ -1,0 +1,35 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Home">
+	<section class="hero">
+		<h1>AI Infrastructure Planner</h1>
+		<p>Interactively size GPUs, pick vector databases, and configure base machines for your AI workloads — all in one place.</p>
+		<p>Select GPU -> Select(or skip) Vector Database -> See config</p>
+	</section>
+
+	<div class="feature-cards">
+		<a href={`${import.meta.env.BASE_URL}/gpu-calculator`} class="card feature-card">
+			<div class="icon" style="color:var(--accent); margin-bottom: 1rem;">
+				<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-gpu-icon lucide-gpu"><path d="M2 21V3"/><path d="M2 5h18a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2.26"/><path d="M7 17v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3"/><circle cx="16" cy="11" r="2"/><circle cx="8" cy="11" r="2"/></svg>			</div>
+			<h3>GPU / VRAM Calculator</h3>
+			<p>Estimate VRAM requirements for various LLMs. Choose quantization, context length, batch size, num of users and see which GPUs fit.</p>
+		</a>
+
+		<a href={`${import.meta.env.BASE_URL}/vector-db`} class="card feature-card">
+			<div class="icon" style="color:var(--accent2); margin-bottom: 1rem;">
+				<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-database-search-icon lucide-database-search"><path d="M21 11.693V5"/><path d="m22 22-1.875-1.875"/><path d="M3 12a9 3 0 0 0 8.697 2.998"/><path d="M3 5v14a9 3 0 0 0 9.28 2.999"/><circle cx="18" cy="18" r="3"/><ellipse cx="12" cy="5" rx="9" ry="3"/></svg>
+			</div>
+			<h3>Vector DB Planner</h3>
+			<p>Compare Milvus, Weaviate, Qdrant, Chroma & pgvector. Size RAM, disk, and cores by your vector count.</p>
+		</a>
+
+		<a href={`${import.meta.env.BASE_URL}/base-machine`} class="card feature-card">
+			<div class="icon" style="color:var(--text); margin-bottom: 1rem;">
+				<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-monitor-cog-icon lucide-monitor-cog"><path d="M12 17v4"/><path d="m14.305 7.53.923-.382"/><path d="m15.228 4.852-.923-.383"/><path d="m16.852 3.228-.383-.924"/><path d="m16.852 8.772-.383.923"/><path d="m19.148 3.228.383-.924"/><path d="m19.53 9.696-.382-.924"/><path d="m20.772 4.852.924-.383"/><path d="m20.772 7.148.924.383"/><path d="M22 13v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><path d="M8 21h8"/><circle cx="18" cy="6" r="3"/></svg>
+			</div>
+			<h3>Base Machine Config</h3>
+			<p>Configure CPU, system RAM, NVMe storage, networking and see a total bill-of-materials for your AI server.</p>
+		</a>
+	</div>
+</Layout>

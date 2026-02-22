@@ -1,0 +1,626 @@
+---
+import { gpus } from '../data/gpus';
+
+const iServer = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-4px; margin-right:8px; color:var(--text);"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`;
+const iCart = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-4px; margin-right:8px; color:var(--accent);"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>`;
+const iSparkles = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-4px; margin-right:8px; color:var(--accent2);"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>`;
+const iCpu = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-4px; margin-right:8px; color:var(--accent2);"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>`;
+const iReceipt = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-3px; margin-right:6px; color:var(--accent);"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17V7"/></svg>`;
+const iZap = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:-3px; margin-right:6px; color:#f0ad4e;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+const iTrash = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`;
+const iExport = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`;
+---
+<div id="base-machine">
+    <div class="card" id="plan-summary-card" style="margin-bottom:1.5rem; background: var(--surface); border-color: var(--accent); display: none;">
+        <h2 style="margin-bottom:1rem; color: var(--accent);"><span set:html={iCart}></span> Infrastructure Requirements</h2>
+        <div id="plan-details" style="display: flex; gap: 2rem; flex-wrap: wrap; font-size: .95rem;">
+        </div>
+        <p style="margin-top:1rem; font-size:.85rem; color:var(--muted)" id="plan-note">
+            * Hardware below has been automatically adjusted to meet these minimum requirements. System RAM includes capacity for Vector DB + loading LLM weights. Storage includes Vector index + LLM weights.
+        </p>
+        <button id="btn-clear-plan" class="btn btn-danger" style="margin-top:1rem; padding:.4rem .8rem; font-size:.8rem;"><span set:html={iTrash}></span> Clear Plan</button>
+    </div>
+
+    <div id="dgx-spark-config" style="display:none; margin-bottom:1.5rem;" class="card">
+        <h2 style="margin-bottom:1rem; color:var(--accent2)"><span set:html={iSparkles}></span> DGX Spark Appliance Selected</h2>
+        <p style="color:var(--muted); font-size:.95rem; line-height: 1.6;">
+            The NVIDIA DGX Spark is a fully integrated AI desktop system. It does not require separate CPU, RAM, or storage component selection.
+            <br/><br/>
+            <strong>Included in each unit:</strong><br/>
+            • <strong>CPU:</strong> 20-core Arm processor (10 Cortex-X925 + 10 Cortex-A725)<br/>
+            • <strong>Memory:</strong> 128 GB LPDDR5x unified system memory (273 GB/s bandwidth)<br/>
+            • <strong>Storage:</strong> 4 TB NVMe M.2 with self-encryption<br/>
+            • <strong>Networking:</strong> 1x 10 GbE RJ-45, ConnectX-7 Smart NIC, Wi-Fi 7, Bluetooth 5.4<br/>
+            • <strong>Power:</strong> 240W external supply
+        </p>
+    </div>
+
+    <div id="apple-mac-config" style="display:none; margin-bottom:1.5rem;" class="card">
+        <h2 style="margin-bottom:1rem; color:var(--accent2)"><span set:html={iCpu}></span> Mac Studio (Apple Silicon) Selected</h2>
+        <p style="color:var(--muted); font-size:.95rem; line-height: 1.6;">
+            The Mac Studio uses an integrated SoC (System on Chip). The CPU, GPU, and memory are built into a single unit using Apple's Unified Memory Architecture.
+            <br/><br/>
+            <strong>Included in each unit:</strong><br/>
+            • <strong>Chip:</strong> <span id="mac-chip-name" style="color:var(--text); font-weight:600;">Apple M4</span><br/>
+            • <strong>Unified Memory:</strong> <span id="mac-ram-size" style="color:var(--text); font-weight:600;">128 GB</span> (Shared between CPU and GPU)<br/>
+            • <strong>Storage:</strong> Built-in Apple NVMe (1TB Base)<br/>
+            • <strong>Networking:</strong> 10Gb Ethernet, Wi-Fi 6E, Bluetooth 5.3<br/>
+            • <strong>Power:</strong> 370W max continuous power
+        </p>
+    </div>
+
+    <div class="card" id="standard-config" style="margin-bottom:1.5rem">
+        <h2 style="margin-bottom:1rem"><span set:html={iServer}></span> Base Configuration</h2>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="bm-cpu">CPU (Auto-selected for Cores & Brand)</label>
+                <select id="bm-cpu">
+                    <optgroup label="Desktop / Local AI">
+                        <option value='{"name":"Intel Core Ultra 9 285K (24C)","cores":24,"price":589}'>Intel Core Ultra 9 285K 24-Core</option>
+                        <option value='{"name":"Intel Core Ultra 7 265K (20C)","cores":20,"price":394}'>Intel Core Ultra 7 265K 20-Core</option>
+                        <option value='{"name":"Intel Core Ultra 5 245K (14C)","cores":14,"price":309}'>Intel Core Ultra 5 245K 14-Core</option>
+                        <option value='{"name":"AMD Ryzen 9 9950X (16C)","cores":16,"price":649}'>AMD Ryzen 9 9950X 16-Core</option>
+                    </optgroup>
+                    <optgroup label="Workstation (HEDT)">
+                        <option value='{"name":"Intel Xeon w9-3595X (60C)","cores":60,"price":8000}'>Intel Xeon w9-3595X 60-Core</option>
+                        <option value='{"name":"Intel Xeon w9-3495X (56C)","cores":56,"price":6500}'>Intel Xeon w9-3495X 56-Core</option>
+                        <option value='{"name":"Intel Xeon w5-3435X (16C)","cores":16,"price":1500}'>Intel Xeon w5-3435X 16-Core</option>
+                        <option value='{"name":"AMD Threadripper 7980X (64C)","cores":64,"price":5000}'>AMD Threadripper 7980X 64-Core</option>
+                        <option value='{"name":"AMD Threadripper 7970X (32C)","cores":32,"price":2500}'>AMD Threadripper 7970X 32-Core</option>
+                    </optgroup>
+                    <optgroup label="Datacenter Server">
+                        <option value='{"name":"AMD EPYC 9754 (128C)","cores":128,"price":12000}'>AMD EPYC 9754 128-Core</option>
+                        <option value='{"name":"AMD EPYC 9654 (96C)","cores":96,"price":10000}'>AMD EPYC 9654 96-Core</option>
+                        <option value='{"name":"AMD EPYC 9554 (64C)","cores":64,"price":6000}'>AMD EPYC 9554 64-Core</option>
+                        <option value='{"name":"AMD EPYC 9334 (32C)","cores":32,"price":3000}' selected>AMD EPYC 9334 32-Core</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="field">
+                <label for="bm-sockets">CPU Sockets</label>
+                <select id="bm-sockets">
+                    <option value="1">1 Socket</option>
+                    <option value="2" selected>2 Sockets</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="bm-ram">RAM Module (Per Stick)</label>
+                <select id="bm-ram">
+                    <optgroup label="Desktop (Non-ECC)">
+                        <option value='{"name":"16 GB Non-ECC","gb":16,"price":600,"ecc":false}'>16 GB DDR5</option>
+                        <option value='{"name":"32 GB Non-ECC","gb":32,"price":1000,"ecc":false}' selected>32 GB DDR5</option>
+                        <option value='{"name":"48 GB Non-ECC","gb":48,"price":1665,"ecc":false}'>48 GB DDR5</option>
+                    </optgroup>
+                    <optgroup label="Server / Workstation (ECC RDIMM)">
+                        <option value='{"name":"32 GB ECC","gb":32,"price":500,"ecc":true}'>32 GB DDR5 ECC RDIMM</option>
+                        <option value='{"name":"64 GB ECC","gb":64,"price":1300,"ecc":true}'>64 GB DDR5 ECC RDIMM</option>
+                        <option value='{"name":"96 GB ECC","gb":96,"price":450,"ecc":true}'>96 GB DDR5 ECC RDIMM</option>
+                        <option value='{"name":"128 GB ECC","gb":128,"price":650,"ecc":true}'>128 GB DDR5 ECC RDIMM</option>
+                        <option value='{"name":"256 GB ECC","gb":256,"price":1500,"ecc":true}'>256 GB DDR5 ECC RDIMM</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="field">
+                <label for="bm-ram-sticks">DIMM Count</label>
+                <select id="bm-ram-sticks">
+                    <option value="2">2 DIMMs</option>
+                    <option value="4">4 DIMMs</option>
+                    <option value="8">8 DIMMs</option>
+                    <option value="12" selected>12 DIMMs</option>
+                    <option value="16">16 DIMMs</option>
+                    <option value="24">24 DIMMs</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="text-align: right; font-size: 0.95rem; font-weight: 600; color: var(--accent2); margin-top: -0.5rem; margin-bottom: 1.5rem;" id="bm-ram-total-display">
+            Total System RAM: -- GB
+        </div>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="bm-nvme">NVMe SSD (each)</label>
+                <select id="bm-nvme">
+                    <option value='{"tb":1,"price":120}'>1 TB Gen4 NVMe</option>
+                    <option value='{"tb":2,"price":200}' selected>2 TB Gen4 NVMe</option>
+                    <option value='{"tb":4,"price":400}'>4 TB Gen4 NVMe</option>
+                    <option value='{"tb":8,"price":900}'>8 TB Gen5 NVMe</option>
+                    <option value='{"tb":15.36,"price":2000}'>15.36 TB Enterprise NVMe</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="bm-nvme-count">NVMe Count (Auto-selected)</label>
+                <input type="number" id="bm-nvme-count" min="1" max="24" value="4" />
+            </div>
+        </div>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="bm-net">Networking</label>
+                <select id="bm-net">
+                    <optgroup label="Desktop / Workstation">
+                        <option value='{"name":"2.5 GbE (included)","price":0}'>2.5 GbE (included)</option>
+                        <option value='{"name":"10 GbE Single Add-in","price":100}'>10 GbE Single Add-in</option>
+                    </optgroup>
+                    <optgroup label="Server / Datacenter">
+                        <option value='{"name":"10 GbE Dual","price":250}'>10 GbE Dual</option>
+                        <option value='{"name":"25 GbE Dual","price":600}' selected>25 GbE Dual</option>
+                        <option value='{"name":"100 GbE (ConnectX-6)","price":1500}'>100 GbE (Mellanox CX-6)</option>
+                        <option value='{"name":"InfiniBand NDR 400G","price":4000}'>InfiniBand NDR 400 Gb/s</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="field">
+                <label for="bm-psu">Power Supply</label>
+                <select id="bm-psu">
+                    <optgroup label="Desktop (ATX)">
+                        <option value='{"name":"750 W ATX","w":750,"price":90,"redundant":false}'>750 W ATX</option>
+                        <option value='{"name":"850 W ATX","w":850,"price":110,"redundant":false}'>850 W ATX</option>
+                        <option value='{"name":"1000 W ATX","w":1000,"price":150,"redundant":false}'>1 000 W ATX</option>
+                        <option value='{"name":"1200 W ATX","w":1200,"price":200,"redundant":false}'>1 200 W ATX</option>
+                        <option value='{"name":"1600 W ATX","w":1600,"price":250,"redundant":false}'>1 600 W ATX</option>
+                    </optgroup>
+                    <optgroup label="Server (Redundant 1+1)">
+                        <option value='{"name":"1200 W Redundant","w":1200,"price":200,"redundant":true}'>1 200 W (1+1 redundant)</option>
+                        <option value='{"name":"1600 W Redundant","w":1600,"price":300,"redundant":true}' selected>1 600 W (1+1 redundant)</option>
+                        <option value='{"name":"2400 W Redundant","w":2400,"price":500,"redundant":true}'>2 400 W (1+1 redundant)</option>
+                        <option value='{"name":"3000 W Redundant","w":3000,"price":700,"redundant":true}'>3 000 W (1+1 redundant)</option>
+                    </optgroup>
+                </select>
+            </div>
+        </div>
+
+        <div class="field-row">
+            <div class="field">
+                <label for="bm-chassis">Chassis / Form Factor</label>
+                <select id="bm-chassis">
+                    <option value='{"name":"Mid-Tower ATX","gpuSlots":2,"price":150}'>Mid-Tower ATX (Desktop)</option>
+                    <option value='{"name":"4U Tower","gpuSlots":4,"price":800}'>4U Tower Workstation</option>
+                    <option value='{"name":"4U Rackmount","gpuSlots":8,"price":1500}' selected>4U Rackmount Server</option>
+                    <option value='{"name":"8-GPU HGX/OAM Chassis","gpuSlots":8,"price":5000}'>8-GPU HGX/OAM Chassis</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="bm-gpu-count">GPU Slots to Populate (Auto-selected)</label>
+                <input type="number" id="bm-gpu-count" min="0" max="8" value="2" />
+            </div>
+        </div>
+    </div>
+
+    <div class="result-panel" id="bom-result" style="display:none">
+        <h3><span set:html={iReceipt}></span> Components</h3>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>Component</th><th>Spec</th><th>Qty</th><th>Unit $</th><th>Subtotal</th></tr></thead>
+                <tbody id="bom-tbody"></tbody>
+                <tfoot>
+                <tr>
+                    <td colspan="4" style="text-align:right"><strong>Estimated Total</strong></td>
+                    <td><strong id="bom-total" style="color:var(--accent2); font-size:1.1rem">–</strong></td>
+                </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <p style="text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; font-style: italic;">
+            * Prices shown are for informative purposes only and may vary. Please check with hardware vendors for current market pricing.
+        </p>
+
+        <div style="margin-top:1rem">
+            <h4 style="color:var(--accent);margin-bottom:.5rem"><span set:html={iZap}></span> Power & Cooling Estimate</h4>
+            <div class="stat"><span class="label">Estimated System TDP</span><span class="value" id="bom-tdp">–</span></div>
+            <div class="stat"><span class="label">Recommended Circuit (240 V)</span><span class="value" id="bom-circuit">–</span></div>
+        </div>
+
+        <div style="margin-top:1.5rem; display: flex; justify-content: flex-end;">
+            <button id="btn-export-bom" class="btn btn-primary"><span set:html={iExport}></span> Export to TXT</button>
+        </div>
+    </div>
+</div>
+
+<script is:inline id="__gpu_data_bm" type="application/json" set:html={JSON.stringify(gpus)}></script>
+
+<script>
+    const gpus = JSON.parse(document.getElementById('__gpu_data_bm')!.textContent!);
+
+    let reqRam = 0, reqCores = 0, reqDiskGb = 0, reqGpuName = '', reqGpuCount = 0;
+
+    let isDgxSpark: boolean;
+    let isApple: boolean;
+    let isAMD: boolean;
+
+    let currentBomLines: any[] = [];
+    let currentTotal = 0;
+
+    function getGpuTdp(gpuName: string): number {
+        if (!gpuName) return 350;
+        if (gpuName.includes('5090')) return 575;
+        if (gpuName.includes('4090')) return 450;
+        if (gpuName.includes('5080')) return 360;
+        if (gpuName.includes('6000 Ada')) return 300;
+        if (gpuName.includes('4080')) return 320;
+        if (gpuName.includes('5070 Ti')) return 300;
+        if (gpuName.includes('5070')) return 250;
+        if (gpuName.includes('4070 Ti')) return 285;
+        if (gpuName.includes('4070')) return 200;
+        if (gpuName.includes('H100') || gpuName.includes('H200') || gpuName.includes('MI300X')) return 700;
+        if (gpuName.includes('B200')) return 1000;
+        if (gpuName.includes('L40S')) return 350;
+        return 350;
+    }
+
+    function clearPlan() {
+        localStorage.removeItem('ai_infra_plan');
+        location.reload();
+    }
+
+    function exportBom() {
+        if (!currentBomLines || currentBomLines.length === 0) return;
+        let text = "========================================================\n";
+        text += "             AI INFRASTRUCTURE PLANNER              \n";
+        text += "========================================================\n\n";
+
+        // Inject the Infrastructure Requirements into the export
+        const plan = JSON.parse(localStorage.getItem('ai_infra_plan') || '{}');
+        if (plan.llm || plan.vdb) {
+            text += "--- Infrastructure Requirements ---\n";
+            if (plan.llm) {
+                const weightsVal = Number(plan.llm.weightsGb) || 0;
+                const fullVramVal = Number(plan.llm.vram) || weightsVal;
+                const isUnified = plan.llm.gpu?.includes('Apple') || plan.llm.gpu?.includes('DGX Spark');
+                const sysRamNeeded = isUnified ? fullVramVal : (weightsVal * 1.1);
+
+                text += `LLM Model   : Needs ${sysRamNeeded.toFixed(1)} GB System RAM ${isUnified ? '(Unified weights + KV)' : 'to stage weights'} (${weightsVal.toFixed(1)} GB Disk)\n`;
+                text += `Hardware    : ${plan.llm.count}× ${plan.llm.gpu}\n`;
+            }
+            if (plan.vdb) {
+                text += `Vector DB   : ${plan.vdb.name} (Needs ${(Number(plan.vdb.ram)||0).toFixed(1)} GB RAM, ${plan.vdb.cores} Cores, ${(Number(plan.vdb.disk)||0).toFixed(1)} GB Disk)\n`;
+            }
+            text += "\n";
+        }
+
+        text += "Component          | QTY | Unit Price | Subtotal  | Specification\n";
+        text += "-------------------|-----|------------|-----------|--------------------------------------------------\n";
+
+        currentBomLines.forEach(l => {
+            const comp = String(l.comp).padEnd(18);
+            const qty = String(l.qty).padEnd(3);
+            const unit = `$${l.unit.toLocaleString()}`.padEnd(10);
+            const sub = `$${l.sub.toLocaleString()}`.padEnd(9);
+            text += `${comp} | ${qty} | ${unit} | ${sub} | ${l.spec}\n`;
+        });
+        text += "---------------------------------------------------------------------------------------------------\n";
+        text += `ESTIMATED TOTAL: $${currentTotal.toLocaleString()}\n\n`;
+
+        const tdp = document.getElementById('bom-tdp')!.textContent;
+        const circuit = document.getElementById('bom-circuit')!.textContent;
+        text += "--- Power & Cooling ---\n";
+        text += `Estimated System TDP : ${tdp}\n`;
+        text += `Recommended Circuit  : ${circuit}\n\n`;
+
+        text += "* Note: Prices shown are for informative purposes only and may vary. Please check with hardware vendors for current market pricing.\n";
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'AI_Infra_.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function findBestFit(selectId: string, checkFn: (opt: any) => boolean, sortKey: string) {
+        const sel = document.getElementById(selectId) as HTMLSelectElement;
+        let bestIdx = -1;
+        let bestVal = Infinity;
+
+        for (let i = 0; i < sel.options.length; i++) {
+            const opt = JSON.parse(sel.options[i].value);
+            if (checkFn(opt) && opt[sortKey] < bestVal) {
+                bestVal = opt[sortKey];
+                bestIdx = i;
+            }
+        }
+        if (bestIdx !== -1) sel.selectedIndex = bestIdx;
+    }
+
+    function loadAndApplyPlan() {
+        reqRam = 0; reqCores = 0; reqDiskGb = 0; reqGpuName = ''; reqGpuCount = 0;
+
+        const plan = JSON.parse(localStorage.getItem('ai_infra_plan') || '{}');
+        const planDiv = document.getElementById('plan-details')!;
+        const summaryCard = document.getElementById('plan-summary-card')!;
+
+        if (!plan.llm && !plan.vdb) return;
+
+        summaryCard.style.display = 'block';
+        let summaryHtml = '';
+
+        if (plan.llm) {
+            const isUnified = plan.llm.gpu?.includes('Apple') || plan.llm.gpu?.includes('DGX Spark');
+
+            const weightsVal = Number(plan.llm.weightsGb) || 0;
+            const fullVramVal = Number(plan.llm.vram) || weightsVal;
+            const diskVal = weightsVal;
+
+            const sysRamNeeded = isUnified ? fullVramVal : (weightsVal * 1.1); // 1.1x overhead for memory mapping
+            reqRam += sysRamNeeded;
+            reqDiskGb += diskVal;
+            reqGpuName = plan.llm.gpu || '';
+            reqGpuCount = Number(plan.llm.count) || 0;
+
+            summaryHtml += `<div><strong>LLM Model:</strong> Needs ${sysRamNeeded.toFixed(1)} GB System RAM ${isUnified ? '(Unified weights + KV)' : 'to stage weights'} (${diskVal.toFixed(1)} GB Disk) <br> <strong>Hardware:</strong> ${reqGpuCount}× ${reqGpuName}</div>`;
+        }
+        if (plan.vdb) {
+            reqRam += Number(plan.vdb.ram) || 0;
+            reqCores += Number(plan.vdb.cores) || 0;
+            reqDiskGb += Number(plan.vdb.disk) || 0;
+            summaryHtml += `<div><strong>Vector DB (${plan.vdb.name}):</strong> Needs ${(Number(plan.vdb.ram)||0).toFixed(1)} GB RAM, ${plan.vdb.cores} Cores, ${(Number(plan.vdb.disk)||0).toFixed(1)} GB Disk</div>`;
+        }
+
+        planDiv.innerHTML = summaryHtml;
+
+        isDgxSpark = reqGpuName.includes('DGX Spark');
+        isApple = reqGpuName.includes('Apple');
+        isAMD = reqGpuName.includes('AMD');
+
+        if (isDgxSpark) {
+            document.getElementById('standard-config')!.style.display = 'none';
+            document.getElementById('apple-mac-config')!.style.display = 'none';
+            document.getElementById('dgx-spark-config')!.style.display = 'block';
+        } else if (isApple) {
+            document.getElementById('standard-config')!.style.display = 'none';
+            document.getElementById('dgx-spark-config')!.style.display = 'none';
+            document.getElementById('apple-mac-config')!.style.display = 'block';
+
+            const gpuObj = gpus.find((g: any) => g.name === reqGpuName);
+            document.getElementById('mac-chip-name')!.textContent = reqGpuName;
+            document.getElementById('mac-ram-size')!.textContent = gpuObj ? `${gpuObj.vram} GB` : 'Unified';
+        } else {
+            document.getElementById('standard-config')!.style.display = 'block';
+            document.getElementById('dgx-spark-config')!.style.display = 'none';
+            document.getElementById('apple-mac-config')!.style.display = 'none';
+
+            // 🚀 SMART HARDWARE RULES
+            const isConsumerGpu = reqGpuName.includes('RTX 40') || reqGpuName.includes('RTX 50');
+            const isEnterpriseGpu = reqGpuName !== '' && !isConsumerGpu && !isApple && !isDgxSpark;
+            const requiresServerPlatform = isEnterpriseGpu || reqGpuCount > 2;
+
+            const minCores = Math.max(8, reqCores);
+
+            findBestFit('bm-cpu', (opt: any) => {
+                let valid = opt.cores >= minCores;
+                if (isAMD && !opt.name.includes('AMD')) valid = false;
+
+                const isDesktopCpuOpt = opt.name.includes('Core Ultra') || opt.name.includes('Ryzen');
+                if (requiresServerPlatform && isDesktopCpuOpt) valid = false;
+
+                return valid;
+            }, 'price');
+
+            const selCpuStr = (document.getElementById('bm-cpu') as HTMLSelectElement).value;
+            const selCpu = JSON.parse(selCpuStr);
+            const isDesktop = selCpu.name.includes('Core Ultra') || selCpu.name.includes('Ryzen');
+
+            // 🚀 SOCKET AUTO-SIZER
+            const socketsSel = document.getElementById('bm-sockets') as HTMLSelectElement;
+            if (isDesktop) {
+                socketsSel.value = "1";
+                (document.getElementById('bm-chassis') as HTMLSelectElement).selectedIndex = 0;
+                (document.getElementById('bm-net') as HTMLSelectElement).selectedIndex = 0;
+            } else {
+                socketsSel.value = (reqCores > selCpu.cores) ? "2" : "1";
+            }
+
+            // 🚀 BULLETPROOF RAM OPTIMIZER
+            const ramSel = document.getElementById('bm-ram') as HTMLSelectElement;
+            const dimmSel = document.getElementById('bm-ram-sticks') as HTMLSelectElement;
+
+            if (reqRam > 0) {
+                const requiresEcc = !isDesktop;
+                let bestConfig = null;
+                let bestCost = Infinity;
+
+                const validDimmIndices = isDesktop ? [0, 1] : [1, 2, 3, 4, 5];
+
+                for (let dIdx of validDimmIndices) {
+                    const dimms = parseInt(dimmSel.options[dIdx].value);
+                    for (let rIdx = 0; rIdx < ramSel.options.length; rIdx++) {
+                        const opt = JSON.parse(ramSel.options[rIdx].value);
+                        if (opt.ecc !== requiresEcc) continue;
+
+                        const totalCap = opt.gb * dimms;
+                        if (totalCap >= reqRam) {
+                            const cost = opt.price * dimms;
+                            // Prefer cheapest. If tied, prefer the one with MORE DIMMs (better memory bandwidth)
+                            if (cost < bestCost) {
+                                bestCost = cost;
+                                bestConfig = { rIdx, dIdx, dimms };
+                            } else if (cost === bestCost && bestConfig && dimms > bestConfig.dimms) {
+                                bestConfig = { rIdx, dIdx, dimms };
+                            }
+                        }
+                    }
+                }
+
+                if (bestConfig) {
+                    ramSel.selectedIndex = bestConfig.rIdx;
+                    dimmSel.selectedIndex = bestConfig.dIdx;
+                }
+            }
+
+            if (reqGpuCount > 0) {
+                (document.getElementById('bm-gpu-count') as HTMLInputElement).value = String(reqGpuCount);
+            }
+
+            if (reqDiskGb > 0) {
+                const nvmeSel = document.getElementById('bm-nvme') as HTMLSelectElement;
+                const opt = JSON.parse(nvmeSel.options[nvmeSel.selectedIndex].value);
+                (document.getElementById('bm-nvme-count') as HTMLInputElement).value = String(Math.max(1, Math.ceil(reqDiskGb / (opt.tb * 1024))));
+            }
+
+            // Power Supply Sizing
+            const estGpuWatts = getGpuTdp(reqGpuName);
+            const estCpuWatts = isDesktop ? 200 : 300;
+            const numSockets = parseInt(socketsSel.value);
+
+            const estTotalWatts = (estCpuWatts * numSockets) + (reqGpuCount * estGpuWatts) + 100;
+            const targetPsuWattage = estTotalWatts * 1.2; // 20% safety margin
+
+            findBestFit('bm-psu', (opt: any) => opt.redundant === !isDesktop && opt.w >= targetPsuWattage, 'w');
+
+            // Passive Cooling Rules
+            const isPassiveGpu = reqGpuName.includes('L40') || reqGpuName.includes('H100') || reqGpuName.includes('A100') || reqGpuName.includes('A40');
+            const chassisSel = document.getElementById('bm-chassis') as HTMLSelectElement;
+            if (reqGpuName.includes('SXM') || reqGpuName.includes('MI300X') || reqGpuName.includes('B200')) {
+                chassisSel.selectedIndex = 3;
+            } else if (reqGpuCount > 2 || isPassiveGpu) {
+                chassisSel.selectedIndex = 2;
+            }
+        }
+    }
+
+    function generateBom() {
+        let totalTdp: number;
+        let circuitAmps: number;
+
+        currentBomLines = [];
+        currentTotal = 0;
+
+        if (isDgxSpark) {
+            const gpuObj = gpus.find((g: any) => g.name === reqGpuName) || { price: 3999 };
+            const unitPrice = gpuObj.price;
+
+            // Check if this is the dual-node linked setup
+            const isLinked = reqGpuName.includes('linked');
+            // Double the component quantity if linked
+            const subQty = isLinked ? reqGpuCount * 2 : reqGpuCount;
+
+            currentBomLines = [
+                // The appliance package itself
+                { comp: 'Appliance', spec: reqGpuName, qty: reqGpuCount, unit: unitPrice, sub: unitPrice * reqGpuCount },
+                // Internal components reflect the subQty
+                { comp: 'CPU', spec: '20-core Arm (Grace Blackwell)', qty: subQty, unit: 0, sub: 0 },
+                { comp: 'System RAM', spec: '128 GB LPDDR5x Unified', qty: subQty, unit: 0, sub: 0 },
+                { comp: 'Storage', spec: '4 TB NVMe M.2', qty: subQty, unit: 0, sub: 0 },
+                { comp: 'Networking', spec: 'ConnectX-7 + 10 GbE + Wi-Fi 7', qty: subQty, unit: 0, sub: 0 },
+                { comp: 'Power Supply', spec: '240W External', qty: subQty, unit: 0, sub: 0 }
+            ];
+
+            // Add the physical connection cable for the linked setup
+            if (isLinked) {
+                currentBomLines.push({
+                    comp: 'Link Cable',
+                    spec: '200GbE QSFP56 1m',
+                    qty: reqGpuCount, // 1 cable per linked pair
+                    unit: 75,
+                    sub: 75 * reqGpuCount
+                });
+            }
+
+            currentTotal = currentBomLines.reduce((s, l) => s + l.sub, 0);
+
+            // A linked pair uses two 240W power supplies
+            totalTdp = reqGpuCount * (isLinked ? 480 : 240);
+            circuitAmps = Math.ceil(totalTdp / 240 * 1.25);
+
+        } else if (isApple) {
+            const gpuObj = gpus.find((g: any) => g.name === reqGpuName) || { price: 3500, vram: 128 };
+            const unitPrice = gpuObj.price;
+
+            currentBomLines = [
+                { comp: 'Mac Studio', spec: reqGpuName, qty: reqGpuCount, unit: unitPrice, sub: unitPrice * reqGpuCount },
+                { comp: 'Unified Memory', spec: `${gpuObj.vram} GB`, qty: reqGpuCount, unit: 0, sub: 0 },
+                { comp: 'Storage', spec: '1 TB Apple NVMe (Base)', qty: reqGpuCount, unit: 0, sub: 0 },
+                { comp: 'Networking', spec: '10Gb Ethernet + Wi-Fi 6E', qty: reqGpuCount, unit: 0, sub: 0 },
+            ];
+            currentTotal = currentBomLines.reduce((s, l) => s + l.sub, 0);
+            totalTdp = reqGpuCount * 370;
+            circuitAmps = Math.ceil(totalTdp / 240 * 1.25);
+
+        } else {
+            const cpu     = JSON.parse((document.getElementById('bm-cpu') as HTMLSelectElement).value);
+            const sockets = parseInt((document.getElementById('bm-sockets') as HTMLSelectElement).value);
+            const ram     = JSON.parse((document.getElementById('bm-ram') as HTMLSelectElement).value);
+            const dimms   = parseInt((document.getElementById('bm-ram-sticks') as HTMLSelectElement).value);
+            const nvme    = JSON.parse((document.getElementById('bm-nvme') as HTMLSelectElement).value);
+            const nvmeCnt = parseInt((document.getElementById('bm-nvme-count') as HTMLInputElement).value);
+            const net     = JSON.parse((document.getElementById('bm-net') as HTMLSelectElement).value);
+            const psu     = JSON.parse((document.getElementById('bm-psu') as HTMLSelectElement).value);
+            const chassis = JSON.parse((document.getElementById('bm-chassis') as HTMLSelectElement).value);
+            const gpuCnt  = parseInt((document.getElementById('bm-gpu-count') as HTMLInputElement).value);
+
+            const totalRamGb = ram.gb * dimms;
+            const psuQty = psu.redundant ? 2 : 1;
+
+            // UX FIX: Instantly update the Total RAM visual readout
+            const ramDisplayEl = document.getElementById('bm-ram-total-display');
+            if(ramDisplayEl) ramDisplayEl.textContent = `Total System RAM: ${totalRamGb} GB`;
+
+            currentBomLines = [
+                { comp: 'CPU',        spec: cpu.name, qty: sockets, unit: cpu.price, sub: cpu.price * sockets },
+                { comp: 'System RAM', spec: `${totalRamGb} GB Total (${dimms}× ${ram.name})`, qty: dimms, unit: ram.price, sub: ram.price * dimms },
+                { comp: 'NVMe SSD',   spec: `${nvme.tb} TB`, qty: nvmeCnt, unit: nvme.price, sub: nvme.price * nvmeCnt },
+                { comp: 'Networking', spec: net.name, qty: 1, unit: net.price, sub: net.price },
+                { comp: 'PSU',        spec: psu.name, qty: psuQty, unit: psu.price, sub: psu.price * psuQty },
+                { comp: 'Chassis',    spec: chassis.name, qty: 1, unit: chassis.price, sub: chassis.price },
+            ];
+
+            if (gpuCnt > 0) {
+                let gpuSpec = `${gpuCnt} populated slots`;
+                let gpuSub = 0;
+                let gpuUnit = 0;
+
+                if (reqGpuName && !isDgxSpark && !isApple) {
+                    const gpuObj = gpus.find((g: any) => g.name === reqGpuName);
+                    if (gpuObj) {
+                        gpuSpec = reqGpuName;
+                        gpuUnit = gpuObj.price;
+                        gpuSub = gpuUnit * gpuCnt;
+                    }
+                }
+
+                currentBomLines.push({
+                    comp: 'GPUs',
+                    spec: gpuSpec,
+                    qty: gpuCnt, unit: gpuUnit, sub: gpuSub
+                });
+            }
+
+            currentTotal = currentBomLines.reduce((s, l) => s + l.sub, 0);
+
+            const gpuWatts = getGpuTdp(reqGpuName);
+            const isDesktopCpu = cpu.name.includes("Core Ultra") || cpu.name.includes("Ryzen");
+            const cpuWatts = isDesktopCpu ? 200 : 300;
+
+            const baseTdp = (sockets * cpuWatts) + (totalRamGb * 0.3) + (nvmeCnt * 8) + 50;
+            totalTdp = baseTdp + (gpuCnt * gpuWatts);
+            circuitAmps = Math.ceil(totalTdp / 240 * 1.25);
+        }
+
+        const tbody = document.getElementById('bom-tbody')!;
+        tbody.innerHTML = currentBomLines.map(l => `
+            <tr>
+                <td>${l.comp}</td><td>${l.spec}</td><td>${l.qty}</td>
+                <td>$${l.unit.toLocaleString()}</td><td>$${l.sub.toLocaleString()}</td>
+            </tr>
+        `).join('');
+
+        document.getElementById('bom-total')!.textContent = `$${currentTotal.toLocaleString()}`;
+        document.getElementById('bom-tdp')!.textContent = `${totalTdp.toLocaleString()} W`;
+        document.getElementById('bom-circuit')!.textContent = `${circuitAmps} A @ 240 V`;
+        document.getElementById('bom-result')!.style.display = '';
+    }
+
+    document.getElementById('base-machine')!.addEventListener('input', generateBom);
+    document.getElementById('btn-clear-plan')!.addEventListener('click', clearPlan);
+    document.getElementById('btn-export-bom')!.addEventListener('click', exportBom);
+
+    loadAndApplyPlan();
+    generateBom();
+</script>
