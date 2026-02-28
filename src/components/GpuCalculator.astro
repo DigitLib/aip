@@ -22,7 +22,7 @@ const iTarget = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" str
                         <label for="sel-model">Model Preset <span class="info-icon" data-tooltip="Pre-fills the architecture details below based on popular open-source models." set:html={iInfo}></span></label>
                         <select id="sel-model">
                             {models.map((m, i) => (
-                                    <option value={i}>{m.name}{m.params > 0 ? ` (${m.params}B)` : ''}</option>
+                                    <option value={i}>{m.name}</option>
                             ))}
                         </select>
                     </div>
@@ -364,13 +364,14 @@ const iTarget = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" str
         const m = models[parseInt(target.value)];
         if (m && m.params > 0) {
             (getEl('inp-params') as HTMLInputElement).value = String(m.params);
-            (getEl('inp-active-params') as HTMLInputElement).value = String(m.experts > 0 ? Math.round(m.params * (0.1 + 0.9 * (m.activeExperts/m.experts))) : m.params);
+            (getEl('inp-active-params') as HTMLInputElement).value = String(m.activeParams);
             (getEl('inp-layers') as HTMLInputElement).value = String(m.layers);
             (getEl('inp-hidden') as HTMLInputElement).value = String(m.hidden);
             (getEl('inp-intermediate') as HTMLInputElement).value = String(m.intermediate);
             (getEl('inp-num-heads') as HTMLInputElement).value = String(m.numHeads);
             (getEl('inp-kv-heads') as HTMLInputElement).value = String(m.numKvHeads);
             (getEl('inp-head-dim') as HTMLInputElement).value = String(m.headDim);
+            (getEl('sel-modality') as HTMLSelectElement).value = m.modality ? String(m.modality) : "1.0";
         }
         updateAttnInfo();
         calculate();

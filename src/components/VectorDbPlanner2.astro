@@ -58,15 +58,6 @@ const iClipboard = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" 
                 <label for="vdb-metadata">Avg Metadata/Text per Vector (KB) <span class="info-icon" data-tooltip="Size of additional JSON metadata and raw text stored alongside each vector." set:html={iInfo}></span></label>
                 <input type="number" id="vdb-metadata" min="0" step="0.5" value="2.0" />
             </div>
-            <div class="field">
-                <label for="vdb-index">Index Type <span class="info-icon" data-tooltip="Algorithm used to structure vectors. HNSW is fast but uses more RAM. FLAT uses no extra RAM but is slow." set:html={iInfo}></span></label>
-                <select id="vdb-index">
-                    <option value="HNSW" selected>HNSW (High Speed, High RAM)</option>
-                    <option value="FLAT">FLAT / Exact (No RAM overhead, Slow)</option>
-                    <option value="IVF_FLAT">IVF_FLAT (Low RAM overhead)</option>
-                    <option value="IVF_PQ">IVF_PQ (High Compression, Low RAM)</option>
-                </select>
-            </div>
         </div>
     </div>
 
@@ -181,7 +172,7 @@ const iClipboard = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" 
     </div>
 </div>
 
-<style is:global>
+<style>
     .info-icon {
         display: inline-flex;
         align-items: center;
@@ -243,9 +234,9 @@ const iClipboard = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" 
 
 <script>
     const dbs = JSON.parse(document.getElementById('__vdb_data')!.textContent!);
+
     const svgCheck = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
     const svgX = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent3)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-    const svgInfo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
 
     (window as any).selectVdb = function(dbName: string, ramNeeded: number, coresNeeded: number, diskNeeded: number) {
         const plan = JSON.parse(localStorage.getItem('ai_infra_plan') || '{}');
@@ -268,6 +259,7 @@ const iClipboard = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" 
             toast.style.opacity = '1';
             toast.style.transform = 'translateY(0)';
         });
+
         setTimeout(() => {
             window.location.href = import.meta.env.BASE_URL + '/base-machine';
         }, 1200);
@@ -283,105 +275,52 @@ const iClipboard = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" 
         const ha          = parseInt((document.getElementById('vdb-ha')        as HTMLSelectElement).value);
         const bytesPerDim = parseInt((document.getElementById('vdb-quant')     as HTMLSelectElement).value);
         const metaKb      = parseFloat((document.getElementById('vdb-metadata') as HTMLInputElement).value);
-        const indexType   = (document.getElementById('vdb-index') as HTMLSelectElement).value;
 
         const haFactor    = ha ? 2 : 1;
         const container   = document.getElementById('vdb-results')!;
         container.innerHTML = '';
 
         for (const db of dbs) {
-            // 1. Calculate Raw Vector Size (Dims * Precision * Vector Count)
-            const rawVectorBytesPerM = dims * bytesPerDim * 1e6;
-            let rawVectorGbPerM = rawVectorBytesPerM / (1024 ** 3);
 
-            // 2. Extract the HNSW Graph Overhead from the baseline in vectordbs.ts
-            // (Baseline assumes 768 dims at FP32)
-            const base768RawGb = (768 * 4 * 1e6) / (1024 ** 3);
-            let dbRamOverheadGbPerM = Math.max(0, db.ramPerMillionVecs768Gb - base768RawGb);
-            let dbDiskOverheadGbPerM = Math.max(0, db.diskPerMillionVecs768Gb - base768RawGb);
+            const actualRawBytesPerM = dims * bytesPerDim * 1e6;
+            const actualRawGibPerM = actualRawBytesPerM / (1024 ** 3);
+            const metaGibPerM = (metaKb * 1024 * 1e6) / (1024 ** 3);
+            const base768Gib = (768 * 4 * 1e6) / (1024 ** 3);
+            const dbRamOverheadGibPerM = Math.max(0, db.ramPerMillionVecs768Gb - base768Gib);
 
-            // 3. Apply Index Strategy Modifiers
-            let isSupported = true;
+            const ramNeeded = ((actualRawGibPerM + dbRamOverheadGibPerM + (metaGibPerM * 0.1)) * millions * replicas * haFactor).toFixed(1);
 
-            switch(indexType) {
-                case 'HNSW':
-                    isSupported = db.indexTypes.some((t: string) => t.includes('HNSW'));
-                    break;
-                case 'FLAT':
-                    // FLAT search requires zero index overhead
-                    dbRamOverheadGbPerM = 0;
-                    dbDiskOverheadGbPerM = 0;
-                    // Most DBs support exact/flat search natively or via M=0
-                    isSupported = db.indexTypes.some((t: string) => t.includes('FLAT')) || ['Qdrant', 'Chroma', 'pgvector'].includes(db.name);
-                    break;
-                case 'IVF_FLAT':
-                    // IVF drastically reduces memory overhead (just storing cluster centroids)
-                    dbRamOverheadGbPerM *= 0.05;
-                    dbDiskOverheadGbPerM *= 0.05;
-                    isSupported = db.indexTypes.some((t: string) => t.includes('IVF_FLAT'));
-                    break;
-                case 'IVF_PQ':
-                    // Product Quantization shrinks index overhead AND compresses raw vectors
-                    dbRamOverheadGbPerM *= 0.05;
-                    dbDiskOverheadGbPerM *= 0.05;
-                    rawVectorGbPerM *= 0.25; // Roughly 4x compression of the vector payloads
-                    isSupported = db.indexTypes.some((t: string) => t.includes('IVF_PQ'));
-                    break;
-            }
+            const actualRawGbPerM = actualRawBytesPerM / 1e9;
+            const metaGbPerM = (metaKb * 1024 * 1e6) / 1e9;
+            const base768Gb = (768 * 4 * 1e6) / 1e9;
+            const dbDiskOverheadGbPerM = Math.max(0, db.diskPerMillionVecs768Gb - base768Gb);
 
-            // 4. Calculate Metadata (Fixing previous unit conversion logic)
-            // KB -> Bytes -> GB
-            const metaGbPerM = (metaKb * 1024 * 1e6) / (1024 ** 3);
+            const diskNeeded = ((actualRawGbPerM + dbDiskOverheadGbPerM + metaGbPerM) * millions * replicas * haFactor).toFixed(1);
 
-            // 5. Final Footprint Totals
-            const ramNeededRaw = (rawVectorGbPerM + dbRamOverheadGbPerM + metaGbPerM) * millions * replicas * haFactor;
-            const ramNeeded = Math.max(0, ramNeededRaw).toFixed(1);
+            const coresNeeded = Math.max(db.minCores, Math.ceil(db.recCores * (qps / 200) * replicas * haFactor));
+            const minRam      = Math.max(db.minRamGb, Math.ceil(parseFloat(ramNeeded) * 1.15));
 
-            const diskNeededRaw = (rawVectorGbPerM + dbDiskOverheadGbPerM + metaGbPerM) * millions * replicas * haFactor;
-            const diskNeeded = Math.max(0, diskNeededRaw).toFixed(1);
-
-            const coresNeeded = Math.max(db.minCores, Math.ceil(db.recCores * (qps / 250) * replicas * haFactor));
-            const minRam = Math.max(db.minRamGb, Math.ceil(parseFloat(ramNeeded) * 1.15));
-
-            // 6. Suitability & UI Flags
             let suitClass = 'badge-green';
             let suitText  = 'Recommended';
-            let disableBtn = false;
 
-            if (!isSupported) {
-                suitClass = 'badge-red';
-                suitText = 'Index Not Supported';
-                disableBtn = true;
-            } else if (millions > 100 && !db.distributed) {
-                suitClass = 'badge-red';
-                suitText = 'Not Recommended';
-            } else if (millions > 50 && db.name === 'Chroma') {
-                suitClass = 'badge-red';
-                suitText = 'Over Capacity';
-            } else if (qps > 500 && !db.distributed) {
-                suitClass = 'badge-purple';
-                suitText = 'May Struggle';
-            }
+            if (millions > 100 && !db.distributed)           { suitClass = 'badge-red'; suitText = 'Not distributed'; }
+            else if (millions > 50 && db.name === 'Chroma')  { suitClass = 'badge-red'; suitText = 'Over capacity'; }
+            else if (qps > 500 && !db.distributed)           { suitClass = 'badge-purple'; suitText = 'May struggle'; }
 
             const pct = Math.min(100, (parseFloat(ramNeeded) / minRam) * 100);
             const barColor = pct > 85 ? 'var(--accent3)' : 'var(--accent2)';
 
-            // Render Card
             const card = document.createElement('div');
             card.className = 'card';
-            card.style.opacity = isSupported ? '1' : '0.5'; // Dim card if index isn't supported
-
             card.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
                     <h3>${db.name}</h3>
                     <span class="badge ${suitClass}">${suitText}</span>
                 </div>
-                
-                <div class="stat"><span class="label">RAM Needed <span class="info-icon" data-tooltip="Total recommended system RAM, including an extra 15% safety buffer for OS and database operations.">${svgInfo}</span></span><span class="value">${minRam} GB</span></div>
-                <div class="stat"><span class="label">Index + Data on Disk <span class="info-icon" data-tooltip="Storage space required for the raw vectors, metadata, and the structural index on disk.">${svgInfo}</span></span><span class="value">${diskNeeded} GB</span></div>
-                <div class="stat"><span class="label">CPU Cores <span class="info-icon" data-tooltip="Estimated vCPUs needed to handle the target QPS (Queries Per Second) and indexing workload.">${svgInfo}</span></span><span class="value">${coresNeeded} vCPU</span></div>
-                <div class="stat"><span class="label">RAM for Vectors (Raw) <span class="info-icon" data-tooltip="Exact memory footprint required just for the vectors, metadata, and the active index structure in memory.">${svgInfo}</span></span><span class="value">${ramNeeded} GB</span></div>
-
+                <div class="stat"><span class="label">RAM Needed</span><span class="value">${minRam} GB</span></div>
+                <div class="stat"><span class="label">Index + Data on Disk</span><span class="value">${diskNeeded} GB</span></div>
+                <div class="stat"><span class="label">CPU Cores</span><span class="value">${coresNeeded} vCPU</span></div>
+                <div class="stat"><span class="label">RAM for Vectors</span><span class="value">${ramNeeded} GB</span></div>
                 <div style="margin-top:.8rem">
                     <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted)">
                         <span>RAM utilization</span><span>${ramNeeded} / ${minRam} GB</span>
@@ -390,13 +329,10 @@ const iClipboard = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" 
                         <div class="progress-fill" style="width: ${pct}%; background: ${barColor}"></div>
                     </div>
                 </div>
-
                 <p style="margin-top:.8rem;font-size:.82rem;color:var(--muted)">${db.notes}</p>
-                
-                <button class="btn btn-primary" style="margin-top:1rem; width:100%; justify-content:center;"
-                    ${disableBtn ? 'disabled style="background:var(--border);color:var(--muted);cursor:not-allowed;"' : ''}
+                <button class="btn btn-primary" style="margin-top:1rem; width:100%; justify-content:center;" 
                     onclick="window.selectVdb('${db.name}', ${minRam}, ${coresNeeded}, ${diskNeeded})">
-                    ${disableBtn ? 'Unavailable' : 'Add to Plan'}
+                    Add to Plan
                 </button>
             `;
             container.appendChild(card);
