@@ -8,6 +8,18 @@ This tool mathematically calculates VRAM for Large Language Models (LLMs), accur
 
 ---
 
+## New
+
+#### GPU Calculator
+* Added Qwen3.5 models
+* Improved VL model detection in Modality
+* Fixed MOE Active parameters
+
+#### Vector Database Planner
+* Added Index Type selection with interactive DB supported list 
+* Improved calculation
+* Added tooltips for DB specs
+
 ## 🛠️ Core Features
 
 ### 1. GPU / VRAM Calculator
